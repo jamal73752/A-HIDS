@@ -3,6 +3,10 @@ main.py - Entry point for the A-HIDS server.
 
 Loads configuration, initialises the database, and starts the Flask API
 on the configured host/port.  Handles startup errors gracefully.
+
+Phase 1 additions:
+  - Structured logging via log_config.setup_logging()
+  - SSL/TLS support with auto-generated self-signed certs
 """
 
 import logging
@@ -20,14 +24,12 @@ from server.api import create_app  # noqa: E402
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
+# Bootstrap logging early; log_config will reconfigure with full handlers.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s – %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("ahids_server.log", encoding="utf-8"),
-    ],
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -71,14 +73,48 @@ def main():
     config = load_config(CONFIG_PATH)
     server_cfg = config.get("server", {})
 
+    # ── Set up structured logging ──────────────────────────────────────────
+    try:
+        from server.log_config import setup_logging
+        log_dir = server_cfg.get("log_dir", "logs")
+        setup_logging(log_dir=log_dir)
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning("Could not set up structured logging: %s", exc)
+
     host = server_cfg.get("host", "0.0.0.0")
     port = int(server_cfg.get("port", 5000))
     debug = bool(server_cfg.get("debug", False))
 
+    # ── SSL context ────────────────────────────────────────────────────────
+    ssl_context = None
+    ssl_enabled = bool(server_cfg.get("ssl_enabled", False))
+    if ssl_enabled:
+        try:
+            from server.ssl_manager import get_ssl_context
+            cert_path = server_cfg.get("ssl_cert", "certs/server.crt")
+            key_path = server_cfg.get("ssl_key", "certs/server.key")
+            ssl_context = get_ssl_context(ssl_enabled, cert_path, key_path)
+            if ssl_context:
+                logger.info("HTTPS enabled – cert=%s key=%s", cert_path, key_path)
+            else:
+                logger.warning("SSL requested but context could not be created – using HTTP")
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning("SSL setup failed (%s) – falling back to HTTP", exc)
+
     try:
         app = create_app(config)
-        logger.info("Flask application created – listening on %s:%d", host, port)
-        app.run(host=host, port=port, debug=debug, use_reloader=False)
+        scheme = "https" if ssl_context else "http"
+        logger.info(
+            "Flask application created – listening on %s://%s:%d",
+            scheme, host, port,
+        )
+        app.run(
+            host=host,
+            port=port,
+            debug=debug,
+            use_reloader=False,
+            ssl_context=ssl_context,
+        )
     except OSError as exc:
         logger.critical("Could not bind to %s:%d – %s", host, port, exc)
         sys.exit(1)

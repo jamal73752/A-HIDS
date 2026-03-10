@@ -1,0 +1,116 @@
+version: "3.8"
+
+services:
+  # ── A-HIDS Server + Dashboard ────────────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ahids-server
+    ports:
+      - "5000:5000"
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config:/app/config:ro
+      - ahids-data:/app/data
+      - ahids-certs:/app/certs
+      - ahids-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks:
+      - ahids-net
+
+  # ── Redis Cache + Message Broker ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ahids-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ahids-net
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ahids-celery-worker
+    command: ["celery", "-A", "server.tasks", "worker", "--loglevel=info",
+              "--concurrency=4"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config:/app/config:ro
+      - ahids-data:/app/data
+    restart: unless-stopped
+    networks:
+      - ahids-net
+
+  # ── Celery Beat Scheduler ────────────────────────────────────────────────────
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ahids-celery-beat
+    command: ["celery", "-A", "server.tasks", "beat", "--loglevel=info"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config:/app/config:ro
+      - ahids-data:/app/data
+    restart: unless-stopped
+    networks:
+      - ahids-net
+
+  # ── Sample Client Agent ───────────────────────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: ahids-client
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    networks:
+      - ahids-net
+
+volumes:
+  ahids-data:
+  ahids-certs:
+  ahids-logs:
+  redis-data:
+
+networks:
+  ahids-net:
+    driver: bridge
