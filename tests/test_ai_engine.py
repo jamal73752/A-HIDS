@@ -56,7 +56,7 @@ class TestAIEngine(unittest.TestCase):
     """Tests for server.ai_engine.AIEngine."""
 
     def setUp(self):
-        from server.ai_engine import AIEngine
+        from server.core.ai_engine import AIEngine
         # Point model_path somewhere that definitely has no .pkl files
         self.engine = AIEngine(model_path="/nonexistent/models/", anomaly_threshold=0.7)
 
@@ -169,7 +169,7 @@ class TestAIEngine(unittest.TestCase):
 
     def test_features_dict_in_result(self):
         """The 'features' key should map feature names to numeric values."""
-        from server.ai_engine import FEATURE_NAMES
+        from server.core.ai_engine import FEATURE_NAMES
 
         payload = _make_payload()
         result = self.engine.predict(payload)
@@ -199,7 +199,7 @@ class TestAIEngine(unittest.TestCase):
             # Copy sample data
             shutil.copy(sample_csv, os.path.join(tmp_dir, "sample_data.csv"))
 
-            from server.ai_engine import AIEngine
+            from server.core.ai_engine import AIEngine
             engine = AIEngine(model_path=tmp_dir, anomaly_threshold=0.7)
 
             # Train

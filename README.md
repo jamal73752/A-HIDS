@@ -13,6 +13,8 @@
 
 **A-HIDS** is a full-featured Host Intrusion Detection System that uses AI/ML to analyze system behavior and detect security threats in real time. It combines machine learning models (Random Forest + Isolation Forest) with a deterministic rule engine for maximum detection coverage.
 
+> **Windows-Only Client**: The client agent (`client/`) is designed for **Windows** hosts. It reads the Windows Event Log (Security, System, Application) via `pywin32` and monitors Windows system files (e.g. `C:\Windows\System32\drivers\etc\hosts`). The server and dashboard run on any platform.
+
 ---
 
 ## Architecture / البنية المعمارية
@@ -22,52 +24,100 @@
 │                     A-HIDS Architecture                         │
 └─────────────────────────────────────────────────────────────────┘
 
-  ┌─────────────────────────────────────────┐
-  │           Client Agents                 │
-  │  ┌──────────┐  ┌──────────┐  ┌───────┐ │
-  │  │ Process  │  │  File    │  │  Log  │ │
-  │  │ Monitor  │  │Integrity │  │Monitor│ │
-  │  └────┬─────┘  └────┬─────┘  └───┬───┘ │
-  │       │              │            │      │
-  │  ┌────▼──────────────▼────────────▼───┐ │
-  │  │         Data Collector             │ │
-  │  │    (system_info + network_monitor) │ │
-  │  └───────────────────┬───────────────┘ │
-  │                       │ HTTP POST /api/data
-  └───────────────────────┼─────────────────┘
-                          │
-  ┌───────────────────────▼─────────────────┐
-  │            REST API Server              │
-  │  ┌─────────────┐    ┌────────────────┐  │
-  │  │  AI Engine  │    │  Rule Engine   │  │
-  │  │  RF + ISO   │    │  YAML Rules    │  │
-  │  └──────┬──────┘    └───────┬────────┘  │
-  │         │                   │            │
-  │  ┌──────▼───────────────────▼────────┐  │
-  │  │          Alert Manager            │  │
-  │  │  (dedup + email + file logging)   │  │
-  │  └──────────────┬────────────────────┘  │
-  │                 │                        │
-  │  ┌──────────────▼────────────────────┐  │
-  │  │         SQLite Database           │  │
-  │  │  clients / events / alerts /rules │  │
-  │  └───────────────────────────────────┘  │
-  └───────────────────┬─────────────────────┘
-                      │ HTTP
-  ┌───────────────────▼─────────────────────┐
-  │           Web Dashboard                  │
-  │  Flask + Bootstrap 5 (Arabic RTL UI)    │
-  │  Charts · Alerts · Clients · Reports    │
-  └─────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────┐
+  │              Windows Client Agent                           │
+  │  client/monitors/                                           │
+  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+  │  │   Process    │  │    File      │  │   Log Monitor    │  │
+  │  │   Monitor    │  │  Integrity   │  │ (Windows Event   │  │
+  │  │  (psutil)    │  │  (SHA-256)   │  │  Log via pywin32)│  │
+  │  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+  │         │                 │                   │             │
+  │  ┌──────▼─────────────────▼───────────────────▼──────────┐ │
+  │  │              Data Collector                           │ │
+  │  │       (system_info + network_monitor)                 │ │
+  │  └──────────────────────┬────────────────────────────────┘ │
+  │                          │ HTTP POST /api/data               │
+  └──────────────────────────┼──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │                  REST API Server                            │
+  │  server/api/           server/core/      server/db/        │
+  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+  │  │  Flask API   │  │  AI Engine   │  │  SQLite /        │ │
+  │  │  (routes +   │  │  Rule Engine │  │  PostgreSQL DB   │ │
+  │  │   JWT auth)  │  │  Alert Mgr   │  │                  │ │
+  │  └──────┬───────┘  └──────┬───────┘  └──────────────────┘ │
+  │         │                 │                                 │
+  │  server/infra/      server/auth/     server/reports/       │
+  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+  │  │  Cache/Redis │  │ JWT Auth Mgr │  │ Report Generator │ │
+  │  │  WebSocket   │  │              │  │                  │ │
+  │  │  Rate Limit  │  │              │  │                  │ │
+  │  └──────────────┘  └──────────────┘  └──────────────────┘ │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │ HTTP
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │                    Web Dashboard                            │
+  │         Flask + Bootstrap 5 (Arabic RTL UI)                │
+  │         Charts · Alerts · Clients · Reports                │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Project Structure / هيكل المشروع
+
+```
+A-HIDS/
+├── client/                     # Windows client agent
+│   ├── monitors/               # Monitoring modules
+│   │   ├── file_integrity.py   # SHA-256 integrity check (Windows paths)
+│   │   ├── log_monitor.py      # Windows Event Log monitor (pywin32)
+│   │   ├── network_monitor.py  # Network connection monitor
+│   │   └── process_monitor.py  # Process monitor
+│   ├── data_collector.py       # Aggregates all monitors
+│   ├── sender.py               # HTTP sender to server
+│   ├── system_info.py          # System information collector
+│   └── main.py                 # Entry point (Windows signal handling)
+├── server/                     # Server (runs on any platform)
+│   ├── api/                    # Flask REST API
+│   │   └── __init__.py         # create_app() factory + all routes
+│   ├── core/                   # Core analysis logic
+│   │   ├── ai_engine.py        # RandomForest + IsolationForest
+│   │   ├── alert_manager.py    # Alert creation and deduplication
+│   │   └── rule_engine.py      # Deterministic rule evaluation
+│   ├── db/                     # Database layer
+│   │   ├── database.py         # SQLite adapter
+│   │   └── database_pg.py      # PostgreSQL adapter
+│   ├── auth/                   # Authentication
+│   │   └── auth_manager.py     # JWT per-client token management
+│   ├── infra/                  # Infrastructure / optional components
+│   │   ├── cache_manager.py    # Redis cache (graceful fallback)
+│   │   ├── log_config.py       # Structured rotating log files
+│   │   ├── security.py         # Rate limiting + security headers
+│   │   ├── ssl_manager.py      # TLS certificate management
+│   │   ├── tasks.py            # Celery background tasks
+│   │   └── websocket_manager.py# Flask-SocketIO real-time updates
+│   ├── reports/                # Report generation
+│   │   └── report_generator.py # HTML security reports
+│   └── main.py                 # Server entry point
+├── dashboard/                  # Web dashboard (Flask)
+├── models/                     # ML model training
+├── config/
+│   └── config.yaml             # Central configuration (Windows paths)
+├── tests/                      # Unit tests
+└── requirements.txt
 ```
 
 ---
 
 ## Features / المميزات
 
+- 🪟 **Windows-Only Client / عميل ويندوز فقط**: Monitors Windows Event Log (Security, System, Application) via `pywin32`; watches Windows system file paths
 - 🔍 **Process Monitoring / مراقبة العمليات**: Detects high-CPU/memory and known-malicious processes
-- 📁 **File Integrity / سلامة الملفات**: SHA-256 hashing and modification detection for critical files
-- 📋 **Log Monitoring / مراقبة السجلات**: Parses auth.log/syslog for failed logins and privilege escalation
+- 📁 **File Integrity / سلامة الملفات**: SHA-256 hashing and modification detection for critical Windows files
+- 📋 **Log Monitoring / مراقبة السجلات**: Reads Windows Event Log for failed logins, account changes, and privilege escalation
 - 🌐 **Network Monitoring / مراقبة الشبكة**: Flags suspicious connections and dangerous listening ports
 - 🤖 **AI Engine / الذكاء الاصطناعي**: RandomForest classifier + IsolationForest anomaly detection
 - 📊 **Arabic Dashboard / لوحة التحكم**: Dark-themed web UI with Chart.js visualizations
@@ -79,6 +129,7 @@
 ## Requirements / المتطلبات
 
 - Python 3.8+
+- **Windows** (for the client agent; server runs on any platform)
 
 ```
 flask>=2.3.0
@@ -92,6 +143,9 @@ pyyaml>=6.0
 watchdog>=3.0.0
 jinja2>=3.1.0
 werkzeug>=2.3.0
+# Windows-only (client)
+pywin32>=306
+wmi>=1.5.1
 ```
 
 ---
@@ -99,9 +153,12 @@ werkzeug>=2.3.0
 ## Installation / التثبيت
 
 ```bash
-git clone https://github.com/example/a-hids.git
-cd a-hids
+git clone https://github.com/jamal73752/A-HIDS.git
+cd A-HIDS
 pip install -r requirements.txt
+
+# On Windows (client host), also install Windows-specific libraries:
+pip install pywin32 wmi
 ```
 
 ---
@@ -112,10 +169,10 @@ pip install -r requirements.txt
 # Train the AI model
 python models/train_model.py
 
-# Start the server
+# Start the server (any platform)
 python server/main.py
 
-# Start the client agent
+# Start the client agent (Windows only)
 python client/main.py
 
 # Start the dashboard

@@ -75,7 +75,7 @@ def main():
 
     # ── Set up structured logging ──────────────────────────────────────────
     try:
-        from server.log_config import setup_logging
+        from server.infra.log_config import setup_logging
         log_dir = server_cfg.get("log_dir", "logs")
         setup_logging(log_dir=log_dir)
     except Exception as exc:  # pylint: disable=broad-except
@@ -90,7 +90,7 @@ def main():
     ssl_enabled = bool(server_cfg.get("ssl_enabled", False))
     if ssl_enabled:
         try:
-            from server.ssl_manager import get_ssl_context
+            from server.infra.ssl_manager import get_ssl_context
             cert_path = server_cfg.get("ssl_cert", "certs/server.crt")
             key_path = server_cfg.get("ssl_key", "certs/server.key")
             ssl_context = get_ssl_context(ssl_enabled, cert_path, key_path)

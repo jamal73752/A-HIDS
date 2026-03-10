@@ -41,7 +41,7 @@ class TestFileIntegrity(unittest.TestCase):
 
     def test_sha256_hash_calculation(self):
         """_sha256 should return a valid 64-char hex digest for a readable file."""
-        from client.file_integrity import _sha256
+        from client.monitors.file_integrity import _sha256
 
         digest = _sha256(self.test_file)
         self.assertIsNotNone(digest)
@@ -53,14 +53,14 @@ class TestFileIntegrity(unittest.TestCase):
 
     def test_sha256_returns_none_for_missing_file(self):
         """_sha256 should return None for a file that does not exist."""
-        from client.file_integrity import _sha256
+        from client.monitors.file_integrity import _sha256
 
         result = _sha256("/nonexistent/path/file.txt")
         self.assertIsNone(result)
 
     def test_baseline_creation(self):
         """create_baseline should write a JSON file with hash entries."""
-        from client.file_integrity import FileIntegrityMonitor
+        from client.monitors.file_integrity import FileIntegrityMonitor
 
         monitor = FileIntegrityMonitor(
             monitored_paths=[self.test_file],
@@ -74,7 +74,7 @@ class TestFileIntegrity(unittest.TestCase):
 
     def test_modification_detection(self):
         """check_integrity should report modified file when hash changes."""
-        from client.file_integrity import FileIntegrityMonitor
+        from client.monitors.file_integrity import FileIntegrityMonitor
 
         monitor = FileIntegrityMonitor(
             monitored_paths=[self.test_file],
@@ -93,7 +93,7 @@ class TestFileIntegrity(unittest.TestCase):
 
     def test_deletion_detection(self):
         """check_integrity should report deleted file when it disappears."""
-        from client.file_integrity import FileIntegrityMonitor
+        from client.monitors.file_integrity import FileIntegrityMonitor
 
         monitor = FileIntegrityMonitor(
             monitored_paths=[self.test_file],
@@ -109,7 +109,7 @@ class TestFileIntegrity(unittest.TestCase):
 
     def test_unchanged_file_not_reported(self):
         """check_integrity should not report unchanged files."""
-        from client.file_integrity import FileIntegrityMonitor
+        from client.monitors.file_integrity import FileIntegrityMonitor
 
         monitor = FileIntegrityMonitor(
             monitored_paths=[self.test_file],
@@ -144,7 +144,7 @@ class TestNetworkMonitor(unittest.TestCase):
     @patch("psutil.net_io_counters")
     def test_collect_returns_dict_with_required_keys(self, mock_counters, mock_conns):
         """collect() must return a dict with all required top-level keys."""
-        from client.network_monitor import NetworkMonitor
+        from client.monitors.network_monitor import NetworkMonitor
 
         mock_conns.return_value = []
         mock_counters.return_value = MagicMock(
@@ -165,7 +165,7 @@ class TestNetworkMonitor(unittest.TestCase):
     @patch("psutil.net_io_counters")
     def test_collect_returns_list_of_connections(self, mock_counters, mock_conns):
         """all_connections should be a list."""
-        from client.network_monitor import NetworkMonitor
+        from client.monitors.network_monitor import NetworkMonitor
 
         mock_conns.return_value = [self._make_mock_conn()]
         mock_counters.return_value = MagicMock(
@@ -181,7 +181,7 @@ class TestNetworkMonitor(unittest.TestCase):
 
     def test_suspicious_port_flagged(self):
         """Connections to known suspicious ports must be detected."""
-        from client.network_monitor import _is_suspicious_conn
+        from client.monitors.network_monitor import _is_suspicious_conn
 
         conn = {
             "local_addr": "192.168.1.10",
@@ -197,7 +197,7 @@ class TestNetworkMonitor(unittest.TestCase):
 
     def test_normal_connection_not_flagged(self):
         """Normal HTTPS connections should not be flagged as suspicious."""
-        from client.network_monitor import _is_suspicious_conn
+        from client.monitors.network_monitor import _is_suspicious_conn
 
         conn = {
             "local_addr": "192.168.1.10",
@@ -288,7 +288,7 @@ class TestLogMonitor(unittest.TestCase):
 
     def test_failed_login_detected(self):
         """Failed password lines should be detected with severity HIGH."""
-        from client.log_monitor import LogMonitor
+        from client.monitors.log_monitor import LogMonitor
 
         self._write_log(
             "Jan  1 00:00:01 host sshd[123]: Failed password for root "
@@ -304,7 +304,7 @@ class TestLogMonitor(unittest.TestCase):
 
     def test_sudo_usage_detected(self):
         """Sudo command lines should be detected with severity MEDIUM."""
-        from client.log_monitor import LogMonitor
+        from client.monitors.log_monitor import LogMonitor
 
         self._write_log(
             "Jan  1 00:01:00 host sudo: user1 : TTY=pts/0 ; "
@@ -320,7 +320,7 @@ class TestLogMonitor(unittest.TestCase):
 
     def test_empty_log_returns_empty_list(self):
         """An empty log file should produce no events."""
-        from client.log_monitor import LogMonitor
+        from client.monitors.log_monitor import LogMonitor
 
         self._write_log("")
         monitor = LogMonitor(log_paths=[self.log_file])
@@ -330,7 +330,7 @@ class TestLogMonitor(unittest.TestCase):
 
     def test_missing_log_returns_empty_list(self):
         """A non-existent log path should not raise and return empty list."""
-        from client.log_monitor import LogMonitor
+        from client.monitors.log_monitor import LogMonitor
 
         monitor = LogMonitor(log_paths=["/nonexistent/path/auth.log"])
         events = monitor.get_events()
@@ -339,7 +339,7 @@ class TestLogMonitor(unittest.TestCase):
 
     def test_event_has_required_keys(self):
         """Each event dict must contain all required keys."""
-        from client.log_monitor import LogMonitor
+        from client.monitors.log_monitor import LogMonitor
 
         self._write_log(
             "Jan  1 12:00:00 host sshd: Failed password for invalid "
