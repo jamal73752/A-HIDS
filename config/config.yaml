@@ -2,6 +2,12 @@ client:
   server_url: "http://localhost:5000"
   auth_token: "your-secret-token"
   collection_interval: 30
+  # HTTPS settings
+  verify_ssl: false       # Set true for production with real certs
+  # JWT settings
+  jwt_enabled: false      # Set true to use per-client JWT tokens
+  master_key: "your-secret-token"
+  client_id: ""           # Leave empty to use hostname
   monitored_paths:
     - /etc/passwd
     - /etc/shadow
@@ -13,8 +19,37 @@ client:
 server:
   host: "0.0.0.0"
   port: 5000
+  debug: false
+  # Database
+  database_type: "sqlite"   # "sqlite" or "postgresql"
   database: "ahids.db"
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "ahids"
+    user: "ahids_user"
+    password: "secure_password"
+    pool_size: 10
+  # Authentication
   secret_key: "your-secret-key"
+  master_key: "your-secret-token"
+  jwt_enabled: true
+  token_expiry_hours: 24
+  # SSL/TLS
+  ssl_enabled: false        # Set true to enable HTTPS
+  ssl_cert: "certs/server.crt"
+  ssl_key: "certs/server.key"
+  # Redis cache
+  redis:
+    enabled: false          # Set true when Redis is available
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""
+  # WebSocket
+  websocket_enabled: true
+  # Logging
+  log_dir: "logs"
 
 dashboard:
   host: "0.0.0.0"

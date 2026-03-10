@@ -2,7 +2,11 @@
 database.py - SQLite database manager for A-HIDS server.
 
 Provides the DatabaseManager class which handles all persistence
-operations: clients, events, alerts, and detection rules.
+operations: clients, events, alerts, detection rules, and JWT token
+blacklist / client-token tables.
+
+A factory function ``create_database(config)`` selects between
+SQLite (default) and PostgreSQL based on configuration.
 Uses context managers for safe connection handling.
 """
 
@@ -63,6 +67,22 @@ CREATE INDEX IF NOT EXISTS idx_events_ts       ON events  (timestamp);
 CREATE INDEX IF NOT EXISTS idx_alerts_client   ON alerts  (client_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_ts       ON alerts  (timestamp);
 CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts  (severity);
+
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash  TEXT    NOT NULL UNIQUE,
+    revoked_at  TEXT    NOT NULL,
+    reason      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS client_tokens (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id   TEXT    NOT NULL,
+    token_hash  TEXT    NOT NULL UNIQUE,
+    issued_at   TEXT    NOT NULL,
+    expires_at  TEXT    NOT NULL,
+    is_active   INTEGER NOT NULL DEFAULT 1
+);
 """
 
 
@@ -453,3 +473,93 @@ class DatabaseManager:
             "alerts_by_severity": alerts_by_severity,
             "recent_alert_count": recent_alerts,
         }
+
+    # ── Token management ───────────────────────────────────────────────────────
+
+    def store_client_token(
+        self, client_id: str, token_hash: str, expires_at: str
+    ) -> None:
+        """
+        Persist a JWT token hash for *client_id*.
+
+        Args:
+            client_id:  Client identifier string.
+            token_hash: SHA-256 hex digest of the raw JWT.
+            expires_at: ISO-format expiry timestamp.
+        """
+        now = datetime.now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO client_tokens "
+                "(client_id, token_hash, issued_at, expires_at, is_active) "
+                "VALUES (?,?,?,?,1)",
+                (client_id, token_hash, now, expires_at),
+            )
+            conn.commit()
+
+    def is_token_revoked(self, token_hash: str) -> bool:
+        """
+        Return True if *token_hash* appears in the blacklist.
+
+        Args:
+            token_hash: SHA-256 hex digest of the JWT to check.
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM token_blacklist WHERE token_hash=?",
+                (token_hash,),
+            ).fetchone()
+        return row is not None
+
+    def revoke_token(self, token_hash: str, reason: str = "revoked") -> None:
+        """
+        Add *token_hash* to the blacklist.
+
+        Args:
+            token_hash: SHA-256 hex digest of the JWT.
+            reason:     Human-readable revocation reason.
+        """
+        now = datetime.now().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO token_blacklist "
+                "(token_hash, revoked_at, reason) VALUES (?,?,?)",
+                (token_hash, now, reason),
+            )
+            conn.commit()
+
+
+# ── Factory function ───────────────────────────────────────────────────────────
+
+
+def create_database(config: Dict[str, Any]) -> "DatabaseManager":
+    """
+    Return the appropriate database manager based on *config*.
+
+    Selects PostgreSQL when ``server.database_type`` is ``"postgresql"``
+    and psycopg2 is installed; falls back to SQLite otherwise.
+
+    Args:
+        config: Full application configuration dict.
+
+    Returns:
+        A configured ``DatabaseManager`` (SQLite) or
+        ``PostgresDatabaseManager`` (PostgreSQL) instance.
+    """
+    server_cfg = config.get("server", {})
+    db_type = server_cfg.get("database_type", "sqlite").lower()
+
+    if db_type == "postgresql":
+        pg_cfg = server_cfg.get("postgresql", {})
+        try:
+            from server.database_pg import PostgresDatabaseManager
+            logger.info("Using PostgreSQL database backend")
+            return PostgresDatabaseManager(pg_cfg)  # type: ignore[return-value]
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning(
+                "PostgreSQL unavailable (%s) – falling back to SQLite.", exc
+            )
+
+    db_path = server_cfg.get("database", "ahids.db")
+    logger.info("Using SQLite database backend: %s", db_path)
+    return DatabaseManager(db_path)

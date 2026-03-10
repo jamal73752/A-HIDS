@@ -335,3 +335,130 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(updateDashboard, REFRESH_INTERVAL_MS);
   }
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Phase 1: WebSocket / real-time updates
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Connect to the A-HIDS WebSocket server and register event handlers.
+ * Falls back gracefully if Socket.IO is not loaded or the server does not
+ * support WebSockets.
+ */
+function initWebSocket() {
+  if (typeof io === 'undefined') {
+    // Socket.IO client not available (e.g. flask-socketio not installed)
+    return;
+  }
+
+  const wsUrl = window.location.protocol + '//' +
+    (window.location.hostname || 'localhost') + ':5000';
+
+  let socket;
+  try {
+    socket = io(wsUrl, { transports: ['websocket', 'polling'] });
+  } catch (err) {
+    console.warn('WebSocket connection failed:', err);
+    return;
+  }
+
+  socket.on('connect', function () {
+    console.info('[WS] Connected to A-HIDS server');
+  });
+
+  socket.on('disconnect', function () {
+    console.info('[WS] Disconnected from A-HIDS server');
+  });
+
+  // New alert broadcast
+  socket.on('new_alert', function (alert) {
+    if (alert.severity === 'CRITICAL' || alert.severity === 'HIGH') {
+      _showToast(
+        '⚠️ تنبيه جديد',
+        alert.rule_name + ' – ' + (alert.description || '').slice(0, 80),
+        alert.severity === 'CRITICAL' ? 'danger' : 'warning',
+        true  // blink
+      );
+    }
+    // Refresh the recent-alerts table if on dashboard page
+    if (document.getElementById('recent-alerts-tbody')) {
+      updateDashboard();
+    }
+  });
+
+  // Stats update broadcast (every 10 s from server)
+  socket.on('stats_update', function (stats) {
+    if (!stats) return;
+    _setText('stat-total-alerts',   stats.total_alerts   != null ? stats.total_alerts   : '—');
+    _setText('stat-active-clients', stats.active_clients != null ? stats.active_clients : '—');
+    _setText('stat-total-events',   stats.total_events   != null ? stats.total_events   : '—');
+    _setText('stat-threats',        stats.recent_alert_count != null ? stats.recent_alert_count : '—');
+  });
+
+  // Client status broadcast
+  socket.on('client_status', function (data) {
+    console.info('[WS] Client status:', data.client, data.status);
+  });
+
+  // New event broadcast
+  socket.on('new_event', function (event) {
+    console.debug('[WS] New event:', event);
+  });
+}
+
+/**
+ * Show a Bootstrap toast notification.
+ *
+ * @param {string}  title   - Toast header title.
+ * @param {string}  message - Toast body text.
+ * @param {string}  type    - Bootstrap color variant (danger, warning, info…).
+ * @param {boolean} blink   - If true add a blinking animation to the header.
+ */
+function _showToast(title, message, type, blink) {
+  type = type || 'info';
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const id = 'toast-' + Date.now();
+  const blinkStyle = blink ? 'animation: blink 0.8s step-start 3;' : '';
+  const html = `
+    <div id="${id}" class="toast align-items-center text-bg-${type} border-0"
+         role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong style="${blinkStyle}">${_escape(title)}</strong><br>
+          ${_escape(message)}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>`;
+
+  container.insertAdjacentHTML('beforeend', html);
+
+  const toastEl = document.getElementById(id);
+  if (window.bootstrap && bootstrap.Toast) {
+    const bsToast = new bootstrap.Toast(toastEl, { delay: 6000 });
+    bsToast.show();
+    toastEl.addEventListener('hidden.bs.toast', function () {
+      toastEl.remove();
+    });
+  }
+}
+
+// Add blink keyframe dynamically (once)
+(function () {
+  if (document.getElementById('ahids-blink-style')) return;
+  const style = document.createElement('style');
+  style.id = 'ahids-blink-style';
+  style.textContent = '@keyframes blink { 50% { opacity: 0; } }';
+  document.head.appendChild(style);
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Phase 1 init
+   ══════════════════════════════════════════════════════════════════════════ */
+
+document.addEventListener('DOMContentLoaded', function () {
+  initWebSocket();
+});
