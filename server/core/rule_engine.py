@@ -99,6 +99,27 @@ BRUTE_FORCE_THRESHOLD = 5
 HIGH_CPU_THRESHOLD = 90.0
 HIGH_MEM_THRESHOLD = 90.0
 
+# Ports commonly used by malware, backdoors, and C2 frameworks
+# (mirrors client.monitors.network_monitor.SUSPICIOUS_PORTS)
+SUSPICIOUS_PORTS = frozenset([
+    4444,   # Metasploit default
+    6666,   # IRC / malware
+    1337,   # "leet" backdoor
+    31337,  # "elite" backdoor
+    8888,   # Various malware / Jupyter exposed
+    9999,   # Various backdoors
+    12345,  # NetBus
+    12346,  # NetBus
+    27374,  # Sub7
+    1080,   # SOCKS proxy / malware
+    4899,   # Radmin
+    5900,   # VNC (suspicious if unexpected)
+    6000,   # X11
+    6667,   # IRC
+    7777,   # Backdoor / game servers
+    8080,   # Alt HTTP / malware C2
+])
+
 # Privilege-escalation pattern keywords
 PRIVESC_PATTERNS = frozenset(
     ["privilege_escalation", "sudo_usage"]
@@ -334,8 +355,6 @@ class RuleEngine:
         Note: full delta tracking would require persistent state between
         calls; here we flag ports from the suspicious list as a signal.
         """
-        from client.network_monitor import SUSPICIOUS_PORTS  # lazy import
-
         network = data.get("network", {})
         listening = network.get("listening_ports", [])
         flagged = [

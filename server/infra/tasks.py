@@ -38,7 +38,7 @@ def _create_celery_app(broker_url: str = "redis://localhost:6379/0"):
             "ahids_tasks",
             broker=broker_url,
             backend=broker_url,
-            include=["server.tasks"],
+            include=["server.infra.tasks"],
         )
 
         celery_app.conf.update(
@@ -50,15 +50,15 @@ def _create_celery_app(broker_url: str = "redis://localhost:6379/0"):
             # Periodic task schedule
             beat_schedule={
                 "retrain-model-daily": {
-                    "task": "server.tasks.retrain_model_task",
+                    "task": "server.infra.tasks.retrain_model_task",
                     "schedule": 86400,  # every 24 hours
                 },
                 "cleanup-old-data": {
-                    "task": "server.tasks.cleanup_old_data_task",
+                    "task": "server.infra.tasks.cleanup_old_data_task",
                     "schedule": 43200,  # every 12 hours
                 },
                 "generate-daily-report": {
-                    "task": "server.tasks.generate_report_task",
+                    "task": "server.infra.tasks.generate_report_task",
                     "schedule": 86400,  # every 24 hours
                 },
             },
@@ -102,7 +102,7 @@ def _make_task(name: str):
     return decorator
 
 
-@_make_task("server.tasks.analyze_data_task")
+@_make_task("server.infra.tasks.analyze_data_task")
 def analyze_data_task(data: Dict[str, Any], config: Optional[Dict] = None) -> Dict:
     """
     Run AI analysis on *data* payload in the background.
@@ -137,7 +137,7 @@ def analyze_data_task(data: Dict[str, Any], config: Optional[Dict] = None) -> Di
         return {"error": str(exc)}
 
 
-@_make_task("server.tasks.send_email_alert_task")
+@_make_task("server.infra.tasks.send_email_alert_task")
 def send_email_alert_task(alert: Dict[str, Any], alerts_config: Optional[Dict] = None) -> bool:
     """
     Send an email notification for *alert* in the background.
@@ -162,7 +162,7 @@ def send_email_alert_task(alert: Dict[str, Any], alerts_config: Optional[Dict] =
         return False
 
 
-@_make_task("server.tasks.generate_report_task")
+@_make_task("server.infra.tasks.generate_report_task")
 def generate_report_task(params: Optional[Dict] = None) -> str:
     """
     Generate an HTML security report in the background.
@@ -186,7 +186,7 @@ def generate_report_task(params: Optional[Dict] = None) -> str:
         return ""
 
 
-@_make_task("server.tasks.retrain_model_task")
+@_make_task("server.infra.tasks.retrain_model_task")
 def retrain_model_task(config: Optional[Dict] = None) -> bool:
     """
     Retrain the AI model using the latest stored data.
@@ -217,7 +217,7 @@ def retrain_model_task(config: Optional[Dict] = None) -> bool:
         return False
 
 
-@_make_task("server.tasks.cleanup_old_data_task")
+@_make_task("server.infra.tasks.cleanup_old_data_task")
 def cleanup_old_data_task(
     db_path: str = "ahids.db",
     retention_days: int = 90,
