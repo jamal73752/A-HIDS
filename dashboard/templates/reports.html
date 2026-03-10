@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}التقارير{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h2 class="page-title">
+    <i class="fas fa-file-alt text-primary me-2"></i>
+    التقارير الأمنية
+  </h2>
+  <p class="text-muted">إنشاء وعرض تقارير الأمان الشاملة</p>
+</div>
+
+<!-- ── Generate button ─────────────────────────────────────────────── -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-custom">
+    <i class="fas fa-plus-circle text-primary me-2"></i>
+    إنشاء تقرير جديد
+  </div>
+  <div class="card-body-custom">
+    <p class="text-muted mb-3">
+      انقر على الزر أدناه لإنشاء تقرير أمني شامل يتضمن ملخصاً تنفيذياً
+      والتنبيهات الأخيرة وحالة الأجهزة.
+    </p>
+    <form method="POST" action="{{ url_for('dashboard.reports') }}">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-file-chart-bar me-2"></i>
+        إنشاء تقرير الآن
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Report preview ──────────────────────────────────────────────── -->
+{% if report_html %}
+<div class="dashboard-card">
+  <div class="card-header-custom d-flex justify-content-between align-items-center">
+    <span>
+      <i class="fas fa-eye text-primary me-2"></i>
+      معاينة التقرير
+    </span>
+    <!-- Download button – writes report to a data URI -->
+    <button class="btn btn-sm btn-outline-success" onclick="downloadReport()">
+      <i class="fas fa-download me-1"></i> تنزيل HTML
+    </button>
+  </div>
+  <div class="card-body-custom p-0">
+    <iframe id="report-frame"
+            style="width:100%; height:600px; border:none; background:#fff;"
+            title="معاينة التقرير">
+    </iframe>
+  </div>
+</div>
+
+<script>
+  // Inject the report HTML into the iframe via srcdoc
+  (function () {
+    const reportHtml = {{ report_html | tojson }};
+    const frame = document.getElementById('report-frame');
+    frame.srcdoc = reportHtml;
+  })();
+
+  function downloadReport() {
+    const reportHtml = {{ report_html | tojson }};
+    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ahids-report-' + new Date().toISOString().slice(0, 10) + '.html';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+
+{% else %}
+<div class="dashboard-card text-center py-5 text-muted">
+  <i class="fas fa-file-alt mb-3" style="font-size:3rem; opacity:0.3"></i>
+  <p>لم يتم إنشاء أي تقرير بعد. انقر على "إنشاء تقرير الآن" أعلاه.</p>
+</div>
+{% endif %}
+
+{% endblock %}

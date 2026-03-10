@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}A-HIDS{% endblock %} – نظام كشف التسلل</title>
+
+  <!-- Bootstrap 5 RTL -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <i class="fas fa-shield-alt text-primary"></i>
+    <span class="ms-2 fw-bold">A-HIDS</span>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.index') }}"
+         class="sidebar-link {% if page == 'dashboard' %}active{% endif %}">
+        <i class="fas fa-tachometer-alt"></i>
+        <span>لوحة التحكم</span>
+      </a>
+    </li>
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.alerts') }}"
+         class="sidebar-link {% if page == 'alerts' %}active{% endif %}">
+        <i class="fas fa-bell"></i>
+        <span>التنبيهات</span>
+      </a>
+    </li>
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.clients') }}"
+         class="sidebar-link {% if page == 'clients' %}active{% endif %}">
+        <i class="fas fa-desktop"></i>
+        <span>الأجهزة</span>
+      </a>
+    </li>
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.logs') }}"
+         class="sidebar-link {% if page == 'logs' %}active{% endif %}">
+        <i class="fas fa-list-alt"></i>
+        <span>السجلات</span>
+      </a>
+    </li>
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.reports') }}"
+         class="sidebar-link {% if page == 'reports' %}active{% endif %}">
+        <i class="fas fa-file-alt"></i>
+        <span>التقارير</span>
+      </a>
+    </li>
+    <li class="sidebar-item">
+      <a href="{{ url_for('dashboard.settings') }}"
+         class="sidebar-link {% if page == 'settings' %}active{% endif %}">
+        <i class="fas fa-cog"></i>
+        <span>الإعدادات</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <small class="text-muted">
+      <i class="fas fa-circle text-success me-1" style="font-size:0.6em"></i>
+      نظام نشط
+    </small>
+  </div>
+</nav>
+
+<!-- ── Main content ────────────────────────────────────────────────────── -->
+<div class="main-content" id="main-content">
+
+  <!-- Top navbar -->
+  <nav class="top-navbar d-flex align-items-center justify-content-between px-4">
+    <button class="btn btn-sm btn-outline-secondary" id="sidebar-toggle">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-muted small" id="current-time"></span>
+      <span class="badge bg-success">
+        <i class="fas fa-shield-alt me-1"></i> محمي
+      </span>
+    </div>
+  </nav>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="px-4 pt-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Page content -->
+  <div class="content-area px-4 py-3">
+    {% block content %}{% endblock %}
+  </div>
+
+</div><!-- /main-content -->
+
+<!-- Bootstrap 5 bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Custom JS -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+<script>
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('current-time').textContent =
+      now.toLocaleString('ar-SA', { hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Sidebar toggle
+  document.getElementById('sidebar-toggle').addEventListener('click', function () {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('main-content').classList.toggle('expanded');
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

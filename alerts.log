@@ -1,0 +1,7 @@
+2026-03-10 21:00:34,479 [ERROR] ALERT#1 client_id=1 rule=brute_force_ssh severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,480 [ERROR] ALERT#1 client_id=1 rule=brute_force_ssh severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,482 [ERROR] ALERT#1 client_id=1 rule=dup_rule severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,483 [ERROR] ALERT#1 client_id=1 rule=rule_alpha severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,483 [ERROR] ALERT#2 client_id=1 rule=rule_beta severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,485 [ERROR] ALERT#1 client_id=1 rule=no_email_rule severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6
+2026-03-10 21:00:34,486 [ERROR] ALERT#1 client_id=1 rule=list_test_rule severity=HIGH | Host: alerthost | Time: 2024-01-01T00:00:00 | Test rule description | count: 6

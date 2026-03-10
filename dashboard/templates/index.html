@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h2 class="page-title">
+    <i class="fas fa-tachometer-alt text-primary me-2"></i>
+    لوحة التحكم الرئيسية
+  </h2>
+  <p class="text-muted">نظرة عامة على حالة الأمان</p>
+</div>
+
+<!-- ── Stats cards ─────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Total Alerts -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card card-danger fade-in">
+      <div class="stat-icon">
+        <i class="fas fa-bell"></i>
+      </div>
+      <div class="stat-body">
+        <div class="stat-number" id="stat-total-alerts">
+          {{ stats.get('total_alerts', 0) }}
+        </div>
+        <div class="stat-label">إجمالي التنبيهات</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Clients -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card card-success fade-in">
+      <div class="stat-icon">
+        <i class="fas fa-desktop"></i>
+      </div>
+      <div class="stat-body">
+        <div class="stat-number" id="stat-active-clients">
+          {{ stats.get('active_clients', 0) }}
+        </div>
+        <div class="stat-label">الأجهزة النشطة</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total Events -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card card-info fade-in">
+      <div class="stat-icon">
+        <i class="fas fa-stream"></i>
+      </div>
+      <div class="stat-body">
+        <div class="stat-number" id="stat-total-events">
+          {{ stats.get('total_events', 0) }}
+        </div>
+        <div class="stat-label">إجمالي الأحداث</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent alerts (24h) -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card card-warning fade-in">
+      <div class="stat-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="stat-body">
+        <div class="stat-number" id="stat-threats">
+          {{ stats.get('recent_alert_count', 0) }}
+        </div>
+        <div class="stat-label">تنبيهات (24 ساعة)</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /stats row -->
+
+<!-- ── Charts ──────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Severity pie chart -->
+  <div class="col-12 col-lg-5">
+    <div class="dashboard-card">
+      <div class="card-header-custom">
+        <i class="fas fa-chart-pie text-primary me-2"></i>
+        توزيع خطورة التنبيهات
+      </div>
+      <div class="card-body-custom" style="height:280px">
+        <canvas id="severityChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity line chart -->
+  <div class="col-12 col-lg-7">
+    <div class="dashboard-card">
+      <div class="card-header-custom">
+        <i class="fas fa-chart-line text-primary me-2"></i>
+        نشاط آخر 7 أيام
+      </div>
+      <div class="card-body-custom" style="height:280px">
+        <canvas id="activityChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /charts row -->
+
+<!-- ── Recent alerts table ─────────────────────────────────────────── -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-custom d-flex justify-content-between align-items-center">
+    <span>
+      <i class="fas fa-bell text-primary me-2"></i>
+      آخر التنبيهات
+    </span>
+    <a href="{{ url_for('dashboard.alerts') }}" class="btn btn-sm btn-outline-primary">
+      عرض الكل
+    </a>
+  </div>
+  <div class="card-body-custom p-0">
+    <div class="table-responsive">
+      <table class="table ahids-table mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>الوقت</th>
+            <th>العميل</th>
+            <th>القاعدة</th>
+            <th>الخطورة</th>
+            <th>الوصف</th>
+          </tr>
+        </thead>
+        <tbody id="recent-alerts-tbody">
+          {% if recent_alerts %}
+            {% for alert in recent_alerts %}
+            <tr>
+              <td>{{ alert.id }}</td>
+              <td class="text-monospace small">{{ alert.timestamp[:19] if alert.timestamp else '—' }}</td>
+              <td>{{ alert.client_id }}</td>
+              <td><code>{{ alert.rule_name }}</code></td>
+              <td>
+                <span class="severity-badge severity-{{ alert.severity | lower }}">
+                  {{ alert.severity }}
+                </span>
+              </td>
+              <td class="text-truncate" style="max-width:220px" title="{{ alert.description }}">
+                {{ alert.description[:60] if alert.description else '—' }}…
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                لا توجد تنبيهات حديثة
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Pass server-side data to JavaScript
+  const severityData = {{ stats.get('alerts_by_severity', {}) | tojson }};
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initCharts(severityData);
+    // Auto-refresh every 30 seconds
+    setInterval(updateDashboard, 30000);
+  });
+</script>
+{% endblock %}
