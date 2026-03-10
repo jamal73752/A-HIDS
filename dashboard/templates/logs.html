@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}السجلات{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4 d-flex justify-content-between align-items-center">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-list-alt text-primary me-2"></i>
+      سجلات الأحداث
+    </h2>
+    <p class="text-muted">آخر الأحداث الأمنية المرصودة</p>
+  </div>
+  <!-- Auto-refresh indicator -->
+  <div class="text-muted small">
+    <i class="fas fa-sync-alt me-1" id="refresh-icon"></i>
+    تحديث تلقائي كل 30 ثانية
+  </div>
+</div>
+
+<!-- ── Filter bar ──────────────────────────────────────────────────── -->
+<div class="dashboard-card mb-3">
+  <div class="card-body-custom py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md-5">
+        <input type="text" id="log-search"
+               class="form-control bg-dark text-light border-secondary"
+               placeholder="🔍  بحث في السجلات…"
+               oninput="searchLogs(this.value)">
+      </div>
+      <div class="col-12 col-md-3">
+        <select id="severity-filter"
+                class="form-select bg-dark text-light border-secondary"
+                onchange="filterBySeverity(this.value)">
+          <option value="">جميع المستويات</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <span class="text-muted small">
+          إجمالي: <strong id="visible-count">{{ events | length }}</strong>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Events table ────────────────────────────────────────────────── -->
+<div class="dashboard-card">
+  <div class="card-body-custom p-0">
+    <div class="table-responsive" style="max-height:600px; overflow-y:auto">
+      <table class="table ahids-table table-sm mb-0" id="logs-table">
+        <thead class="sticky-top">
+          <tr>
+            <th>#</th>
+            <th>الوقت</th>
+            <th>العميل</th>
+            <th>النوع</th>
+            <th>الخطورة</th>
+            <th>الوصف</th>
+          </tr>
+        </thead>
+        <tbody id="logs-tbody">
+          {% if events %}
+            {% for event in events %}
+            <tr data-severity="{{ event.severity | upper }}">
+              <td>{{ event.id }}</td>
+              <td class="font-monospace small text-muted">
+                {{ event.timestamp[:19] if event.timestamp else '—' }}
+              </td>
+              <td>{{ event.client_id }}</td>
+              <td><code class="text-info">{{ event.event_type or '—' }}</code></td>
+              <td>
+                <span class="severity-badge severity-{{ event.severity | lower }}">
+                  {{ event.severity }}
+                </span>
+              </td>
+              <td class="font-monospace small">
+                {{ event.description[:100] if event.description else '—' }}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr id="no-events-row">
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-inbox me-2"></i> لا توجد أحداث مسجلة
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-refresh every 30 seconds
+  setInterval(function () {
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('fa-spin');
+    setTimeout(() => icon.classList.remove('fa-spin'), 800);
+    location.reload();
+  }, 30000);
+
+  function filterBySeverity(severity) {
+    const rows = document.querySelectorAll('#logs-tbody tr[data-severity]');
+    let visible = 0;
+    rows.forEach(function (row) {
+      const match = !severity || row.dataset.severity === severity;
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    document.getElementById('visible-count').textContent = visible;
+  }
+</script>
+{% endblock %}

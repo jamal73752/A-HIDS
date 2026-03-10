@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}الأجهزة{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h2 class="page-title">
+    <i class="fas fa-desktop text-primary me-2"></i>
+    الأجهزة المتصلة
+  </h2>
+  <p class="text-muted">حالة وكلاء المراقبة المسجلين</p>
+</div>
+
+{% if clients %}
+<div class="row g-3">
+  {% for client in clients %}
+  {% set last_seen_age = (now - client.last_seen | default(0)) if client.last_seen else 999 %}
+  {% set is_online = client.status == 'active' %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="dashboard-card client-card fade-in
+                {% if is_online %}border-success-subtle{% else %}border-danger-subtle{% endif %}">
+
+      <!-- Card header -->
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <span>
+          <i class="fas fa-server me-2
+             {% if is_online %}text-success{% else %}text-danger{% endif %}">
+          </i>
+          <strong>{{ client.hostname or 'غير معروف' }}</strong>
+        </span>
+        <span class="badge {% if is_online %}bg-success{% else %}bg-danger{% endif %}">
+          {% if is_online %}نشط{% else %}غير متصل{% endif %}
+        </span>
+      </div>
+
+      <!-- Card body -->
+      <div class="card-body-custom">
+        <table class="table table-sm table-borderless text-light mb-0">
+          <tr>
+            <td class="text-muted"><i class="fas fa-network-wired me-1"></i> IP</td>
+            <td><code>{{ client.ip_address or '—' }}</code></td>
+          </tr>
+          <tr>
+            <td class="text-muted"><i class="fas fa-laptop me-1"></i> نظام التشغيل</td>
+            <td>{{ (client.os_info or '—')[:30] }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted"><i class="fas fa-clock me-1"></i> آخر اتصال</td>
+            <td class="small">
+              {{ client.last_seen[:19] if client.last_seen else '—' }}
+            </td>
+          </tr>
+          <tr>
+            <td class="text-muted"><i class="fas fa-hashtag me-1"></i> المعرّف</td>
+            <td>{{ client.id }}</td>
+          </tr>
+        </table>
+      </div>
+
+    </div><!-- /client-card -->
+  </div>
+  {% endfor %}
+</div><!-- /row -->
+
+{% else %}
+<div class="dashboard-card text-center py-5">
+  <i class="fas fa-plug text-muted mb-3" style="font-size:3rem"></i>
+  <h4 class="text-muted">لم يتم تسجيل أي أجهزة بعد</h4>
+  <p class="text-muted">قم بتشغيل عميل A-HIDS على الأجهزة التي تريد مراقبتها</p>
+</div>
+{% endif %}
+
+{% endblock %}

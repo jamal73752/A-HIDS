@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}الإعدادات{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h2 class="page-title">
+    <i class="fas fa-cog text-primary me-2"></i>
+    إعدادات النظام
+  </h2>
+  <p class="text-muted">تكوين خادم A-HIDS والمراقبة والإشعارات</p>
+</div>
+
+<form method="POST" action="{{ url_for('dashboard.settings') }}">
+
+  <!-- ── Server connection ─────────────────────────────────────────── -->
+  <div class="dashboard-card mb-4">
+    <div class="card-header-custom">
+      <i class="fas fa-server text-primary me-2"></i>
+      اتصال الخادم
+    </div>
+    <div class="card-body-custom">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label text-muted">عنوان الخادم (URL)</label>
+          <input type="url" name="server_url" class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('client', {}).get('server_url', 'http://localhost:5000') }}"
+                 placeholder="http://localhost:5000">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label text-muted">رمز المصادقة (Token)</label>
+          <input type="password" name="auth_token" class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('client', {}).get('auth_token', '') }}"
+                 placeholder="your-secret-token">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Monitoring ────────────────────────────────────────────────── -->
+  <div class="dashboard-card mb-4">
+    <div class="card-header-custom">
+      <i class="fas fa-eye text-primary me-2"></i>
+      إعدادات المراقبة
+    </div>
+    <div class="card-body-custom">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label text-muted">فترة الجمع (ثانية)</label>
+          <input type="number" name="collection_interval"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('client', {}).get('collection_interval', 30) }}"
+                 min="10" max="3600">
+        </div>
+        <div class="col-12 col-md-8">
+          <label class="form-label text-muted">المسارات المراقبة</label>
+          <textarea name="monitored_paths"
+                    class="form-control bg-dark text-light border-secondary font-monospace"
+                    rows="4"
+                    placeholder="/etc/passwd&#10;/etc/shadow">{% for p in config.get('client', {}).get('monitored_paths', []) %}{{ p }}
+{% endfor %}</textarea>
+          <small class="text-muted">مسار واحد في كل سطر</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Email notifications ───────────────────────────────────────── -->
+  <div class="dashboard-card mb-4">
+    <div class="card-header-custom">
+      <i class="fas fa-envelope text-primary me-2"></i>
+      إشعارات البريد الإلكتروني
+    </div>
+    <div class="card-body-custom">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="email_enabled"
+                   id="email-toggle"
+                   {% if config.get('alerts', {}).get('email_enabled') %}checked{% endif %}>
+            <label class="form-check-label text-light" for="email-toggle">
+              تفعيل إشعارات البريد الإلكتروني
+            </label>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label text-muted">خادم SMTP</label>
+          <input type="text" name="smtp_server"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('alerts', {}).get('smtp_server', 'smtp.gmail.com') }}"
+                 placeholder="smtp.gmail.com">
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label text-muted">المنفذ</label>
+          <input type="number" name="smtp_port"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('alerts', {}).get('smtp_port', 587) }}">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label text-muted">البريد المُرسِل</label>
+          <input type="email" name="email_from"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('alerts', {}).get('email_from', '') }}"
+                 placeholder="ahids@example.com">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label text-muted">البريد المستلم</label>
+          <input type="email" name="email_to"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ config.get('alerts', {}).get('email_to', '') }}"
+                 placeholder="admin@example.com">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI settings ────────────────────────────────────────────────── -->
+  <div class="dashboard-card mb-4">
+    <div class="card-header-custom">
+      <i class="fas fa-brain text-primary me-2"></i>
+      إعدادات الذكاء الاصطناعي
+    </div>
+    <div class="card-body-custom">
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-md-4">
+          <label class="form-label text-muted">
+            عتبة الشذوذ:
+            <strong id="threshold-value">
+              {{ config.get('ai', {}).get('anomaly_threshold', 0.7) }}
+            </strong>
+          </label>
+          <input type="range" name="anomaly_threshold" class="form-range"
+                 min="0.1" max="1.0" step="0.05"
+                 value="{{ config.get('ai', {}).get('anomaly_threshold', 0.7) }}"
+                 oninput="document.getElementById('threshold-value').textContent = this.value">
+          <div class="d-flex justify-content-between">
+            <small class="text-success">حساس (0.1)</small>
+            <small class="text-danger">صارم (1.0)</small>
+          </div>
+        </div>
+        <div class="col-12 col-md-8">
+          <div class="alert alert-info p-2 mb-0" style="font-size:0.85em">
+            <i class="fas fa-info-circle me-1"></i>
+            قيمة منخفضة = أكثر حساسية (تنبيهات أكثر) |
+            قيمة عالية = أقل حساسية (تنبيهات أقل)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save button -->
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4">
+      <i class="fas fa-save me-2"></i> حفظ الإعدادات
+    </button>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+      إلغاء
+    </a>
+  </div>
+
+</form>
+{% endblock %}

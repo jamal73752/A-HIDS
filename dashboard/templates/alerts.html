@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}التنبيهات{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h2 class="page-title">
+    <i class="fas fa-bell text-primary me-2"></i>
+    التنبيهات الأمنية
+  </h2>
+</div>
+
+<!-- ── Filter form ─────────────────────────────────────────────────── -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-custom">
+    <i class="fas fa-filter text-primary me-2"></i> تصفية التنبيهات
+  </div>
+  <div class="card-body-custom">
+    <form method="GET" action="{{ url_for('dashboard.alerts') }}" class="row g-3">
+
+      <!-- Severity filter -->
+      <div class="col-12 col-md-3">
+        <label class="form-label text-muted">مستوى الخطورة</label>
+        <select name="severity" class="form-select bg-dark text-light border-secondary">
+          <option value="" {% if not current_severity %}selected{% endif %}>الكل</option>
+          <option value="LOW"      {% if current_severity == 'LOW' %}selected{% endif %}>LOW</option>
+          <option value="MEDIUM"   {% if current_severity == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+          <option value="HIGH"     {% if current_severity == 'HIGH' %}selected{% endif %}>HIGH</option>
+          <option value="CRITICAL" {% if current_severity == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+        </select>
+      </div>
+
+      <!-- Client filter -->
+      <div class="col-12 col-md-3">
+        <label class="form-label text-muted">الجهاز</label>
+        <select name="client_id" class="form-select bg-dark text-light border-secondary">
+          <option value="">جميع الأجهزة</option>
+          {% for client in clients %}
+            <option value="{{ client.id }}">{{ client.hostname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Limit -->
+      <div class="col-12 col-md-2">
+        <label class="form-label text-muted">الحد الأقصى</label>
+        <select name="limit" class="form-select bg-dark text-light border-secondary">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+
+      <!-- Submit -->
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="fas fa-search me-1"></i> بحث
+        </button>
+      </div>
+
+      <!-- Reset -->
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <a href="{{ url_for('dashboard.alerts') }}" class="btn btn-outline-secondary w-100">
+          <i class="fas fa-undo me-1"></i> إعادة تعيين
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- ── Alerts table ────────────────────────────────────────────────── -->
+<div class="dashboard-card">
+  <div class="card-header-custom d-flex justify-content-between align-items-center">
+    <span>
+      <i class="fas fa-list text-primary me-2"></i>
+      التنبيهات ({{ alerts | length }})
+    </span>
+    <!-- Client-side quick filter -->
+    <input type="text" id="alert-search"
+           class="form-control form-control-sm bg-dark text-light border-secondary"
+           style="max-width:220px" placeholder="بحث سريع…"
+           oninput="filterAlerts(this.value)">
+  </div>
+  <div class="card-body-custom p-0">
+    <div class="table-responsive">
+      <table class="table ahids-table mb-0" id="alerts-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>الوقت</th>
+            <th>العميل</th>
+            <th>القاعدة</th>
+            <th>الخطورة</th>
+            <th>الوصف</th>
+            <th>مؤكد</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if alerts %}
+            {% for alert in alerts %}
+            <tr class="{% if alert.severity == 'CRITICAL' %}pulse-row{% endif %}">
+              <td>{{ alert.id }}</td>
+              <td class="text-monospace small">
+                {{ alert.timestamp[:19] if alert.timestamp else '—' }}
+              </td>
+              <td>{{ alert.client_id }}</td>
+              <td><code>{{ alert.rule_name }}</code></td>
+              <td>
+                <span class="severity-badge severity-{{ alert.severity | lower }}">
+                  {{ alert.severity }}
+                </span>
+              </td>
+              <td class="text-truncate" style="max-width:240px"
+                  title="{{ alert.description }}">
+                {{ alert.description[:70] if alert.description else '—' }}
+              </td>
+              <td>
+                {% if alert.acknowledged %}
+                  <i class="fas fa-check-circle text-success"></i>
+                {% else %}
+                  <i class="fas fa-clock text-warning"></i>
+                {% endif %}
+              </td>
+              <td>
+                {% if not alert.acknowledged %}
+                <form method="POST"
+                      action="{{ url_for('dashboard.acknowledge_alert', alert_id=alert.id) }}"
+                      style="display:inline">
+                  <button type="submit" class="btn btn-xs btn-outline-success"
+                          title="تأكيد التنبيه">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                لا توجد تنبيهات مطابقة للمعايير
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div><!-- /table-responsive -->
+  </div>
+</div>
+
+{% endblock %}
