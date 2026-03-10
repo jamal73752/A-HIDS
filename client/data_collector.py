@@ -11,10 +11,10 @@ import socket
 from datetime import datetime
 from typing import Any, Dict
 
-from client.file_integrity import FileIntegrityMonitor
-from client.log_monitor import LogMonitor
-from client.network_monitor import NetworkMonitor
-from client.process_monitor import ProcessMonitor
+from client.monitors.file_integrity import FileIntegrityMonitor
+from client.monitors.log_monitor import LogMonitor
+from client.monitors.network_monitor import NetworkMonitor
+from client.monitors.process_monitor import ProcessMonitor
 from client.system_info import SystemInfoCollector
 
 logger = logging.getLogger(__name__)

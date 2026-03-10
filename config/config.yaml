@@ -8,13 +8,19 @@ client:
   jwt_enabled: false      # Set true to use per-client JWT tokens
   master_key: "your-secret-token"
   client_id: ""           # Leave empty to use hostname
+  # Windows file paths to monitor for integrity
   monitored_paths:
-    - /etc/passwd
-    - /etc/shadow
-    - /etc/ssh/sshd_config
+    - 'C:\Windows\System32\drivers\etc\hosts'
+    - 'C:\Windows\System32\drivers\etc\services'
+    - 'C:\Windows\win.ini'
+    - 'C:\Windows\System32\config\SAM'
+    - 'C:\Windows\System32\config\SYSTEM'
+    - 'C:\Windows\System32\config\SECURITY'
+  # Windows Event Log names to monitor
   monitored_logs:
-    - /var/log/syslog
-    - /var/log/auth.log
+    - Security
+    - System
+    - Application
 
 server:
   host: "0.0.0.0"

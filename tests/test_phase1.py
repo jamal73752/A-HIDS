@@ -30,7 +30,7 @@ class TestDatabaseTokenManagement(unittest.TestCase):
     """Tests for new token management methods on DatabaseManager."""
 
     def setUp(self):
-        from server.database import DatabaseManager
+        from server.db.database import DatabaseManager
         self.db = DatabaseManager(db_path=":memory:")
 
     def test_store_and_check_token(self):
@@ -61,19 +61,19 @@ class TestCreateDatabaseFactory(unittest.TestCase):
 
     def test_sqlite_is_default(self):
         """create_database without database_type should return a DatabaseManager."""
-        from server.database import DatabaseManager, create_database
+        from server.db.database import DatabaseManager, create_database
         db = create_database({"server": {"database": ":memory:"}})
         self.assertIsInstance(db, DatabaseManager)
 
     def test_sqlite_explicit(self):
         """create_database with database_type=sqlite should return a DatabaseManager."""
-        from server.database import DatabaseManager, create_database
+        from server.db.database import DatabaseManager, create_database
         db = create_database({"server": {"database_type": "sqlite", "database": ":memory:"}})
         self.assertIsInstance(db, DatabaseManager)
 
     def test_postgresql_falls_back_to_sqlite(self):
         """create_database with postgresql (unavailable) should fall back to SQLite."""
-        from server.database import DatabaseManager, create_database
+        from server.db.database import DatabaseManager, create_database
         # psycopg2 is not installed in the test environment – should fall back
         db = create_database({
             "server": {
@@ -92,8 +92,8 @@ class TestAuthManager(unittest.TestCase):
     """Tests for server.auth_manager.AuthManager with PyJWT."""
 
     def _make_manager(self):
-        from server.database import DatabaseManager
-        from server.auth_manager import AuthManager
+        from server.db.database import DatabaseManager
+        from server.auth.auth_manager import AuthManager
         db = DatabaseManager(":memory:")
         return AuthManager(secret_key="test-secret", db_manager=db, token_expiry_hours=1)
 
@@ -159,8 +159,8 @@ class TestAuthManager(unittest.TestCase):
 
     def test_no_jwt_library_generate_returns_none(self):
         """Without PyJWT, generate_token should return None gracefully."""
-        from server.database import DatabaseManager
-        from server.auth_manager import AuthManager
+        from server.db.database import DatabaseManager
+        from server.auth.auth_manager import AuthManager
         db = DatabaseManager(":memory:")
         mgr = AuthManager(secret_key="s", db_manager=db)
         mgr._jwt_available = False  # simulate missing library
@@ -168,8 +168,8 @@ class TestAuthManager(unittest.TestCase):
 
     def test_no_jwt_library_verify_returns_none(self):
         """Without PyJWT, verify_token should return None gracefully."""
-        from server.database import DatabaseManager
-        from server.auth_manager import AuthManager
+        from server.db.database import DatabaseManager
+        from server.auth.auth_manager import AuthManager
         db = DatabaseManager(":memory:")
         mgr = AuthManager(secret_key="s", db_manager=db)
         mgr._jwt_available = False
@@ -183,27 +183,27 @@ class TestCacheManager(unittest.TestCase):
 
     def test_disabled_cache_get_returns_none(self):
         """get_cached should return None when Redis is unavailable."""
-        from server.cache_manager import CacheManager
+        from server.infra.cache_manager import CacheManager
         cache = CacheManager({"host": "127.0.0.1", "port": 19999})  # bad port
         self.assertFalse(cache.enabled)
         self.assertIsNone(cache.get_cached("any_key"))
 
     def test_disabled_cache_set_does_not_raise(self):
         """set_cached should not raise when cache is disabled."""
-        from server.cache_manager import CacheManager
+        from server.infra.cache_manager import CacheManager
         cache = CacheManager({"host": "127.0.0.1", "port": 19999})
         cache.set_cached("key", {"data": 1}, ttl=30)  # should not raise
 
     def test_disabled_cache_invalidate_does_not_raise(self):
         """invalidate and invalidate_pattern should not raise when disabled."""
-        from server.cache_manager import CacheManager
+        from server.infra.cache_manager import CacheManager
         cache = CacheManager({"host": "127.0.0.1", "port": 19999})
         cache.invalidate("key")
         cache.invalidate_pattern("ahids:*")
 
     def test_cached_decorator_with_disabled_cache(self):
         """@cached decorator should call wrapped function when cache is disabled."""
-        from server.cache_manager import CacheManager
+        from server.infra.cache_manager import CacheManager
         cache = CacheManager({"host": "127.0.0.1", "port": 19999})
         call_count = [0]
 
@@ -224,25 +224,25 @@ class TestWebSocketManager(unittest.TestCase):
 
     def test_no_socketio_is_disabled(self):
         """WebSocketManager without socketio should report disabled."""
-        from server.websocket_manager import WebSocketManager
+        from server.infra.websocket_manager import WebSocketManager
         mgr = WebSocketManager(socketio=None)
         self.assertFalse(mgr.enabled)
 
     def test_emit_new_alert_does_not_raise_when_disabled(self):
         """emit_new_alert should not raise when WebSocket is disabled."""
-        from server.websocket_manager import WebSocketManager
+        from server.infra.websocket_manager import WebSocketManager
         mgr = WebSocketManager(socketio=None)
         mgr.emit_new_alert({"id": 1, "severity": "HIGH", "rule_name": "test"})
 
     def test_emit_stats_update_does_not_raise_when_disabled(self):
         """emit_stats_update should not raise when WebSocket is disabled."""
-        from server.websocket_manager import WebSocketManager
+        from server.infra.websocket_manager import WebSocketManager
         mgr = WebSocketManager(socketio=None)
         mgr.emit_stats_update({"total_alerts": 5, "active_clients": 2})
 
     def test_emit_with_socketio_calls_emit(self):
         """emit_new_alert should call sio.emit when SocketIO is available."""
-        from server.websocket_manager import WebSocketManager
+        from server.infra.websocket_manager import WebSocketManager
         mock_sio = MagicMock()
         mgr = WebSocketManager(socketio=mock_sio)
         self.assertTrue(mgr.enabled)
@@ -257,12 +257,12 @@ class TestSSLManager(unittest.TestCase):
 
     def test_certs_exist_false_for_missing_files(self):
         """certs_exist should return False for non-existent paths."""
-        from server.ssl_manager import certs_exist
+        from server.infra.ssl_manager import certs_exist
         self.assertFalse(certs_exist("/nonexistent/cert.crt", "/nonexistent/key.key"))
 
     def test_get_ssl_context_disabled(self):
         """get_ssl_context with ssl_enabled=False should return None."""
-        from server.ssl_manager import get_ssl_context
+        from server.infra.ssl_manager import get_ssl_context
         result = get_ssl_context(ssl_enabled=False)
         self.assertIsNone(result)
 
@@ -274,7 +274,7 @@ class TestSSLManager(unittest.TestCase):
         """generate_self_signed_cert should create cert and key files."""
         import tempfile
         import shutil
-        from server.ssl_manager import generate_self_signed_cert, certs_exist
+        from server.infra.ssl_manager import generate_self_signed_cert, certs_exist
 
         tmp_dir = tempfile.mkdtemp()
         try:

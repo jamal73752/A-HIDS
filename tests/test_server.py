@@ -23,7 +23,7 @@ class TestDatabase(unittest.TestCase):
 
     def setUp(self):
         """Create an in-memory database for each test."""
-        from server.database import DatabaseManager
+        from server.db.database import DatabaseManager
         self.db = DatabaseManager(db_path=":memory:")
 
     def test_init_creates_tables(self):
@@ -31,7 +31,7 @@ class TestDatabase(unittest.TestCase):
         import sqlite3
         conn = sqlite3.connect(":memory:")
         # Re-run init on the same DB to verify idempotency
-        from server.database import _DDL
+        from server.db.database import _DDL
         conn.executescript(_DDL)
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
@@ -140,7 +140,7 @@ class TestRuleEngine(unittest.TestCase):
     """Tests for server.rule_engine.RuleEngine."""
 
     def setUp(self):
-        from server.rule_engine import RuleEngine
+        from server.core.rule_engine import RuleEngine
         self.engine = RuleEngine()
 
     def _make_data(self, **overrides):
@@ -246,8 +246,8 @@ class TestAlertManager(unittest.TestCase):
     """Tests for server.alert_manager.AlertManager."""
 
     def setUp(self):
-        from server.database import DatabaseManager
-        from server.alert_manager import AlertManager
+        from server.db.database import DatabaseManager
+        from server.core.alert_manager import AlertManager
 
         self.db = DatabaseManager(db_path=":memory:")
         self.client_id = self.db.add_client("alerthost")

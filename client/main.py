@@ -3,7 +3,9 @@ main.py - Entry point for the A-HIDS client agent.
 
 Loads configuration, initialises all monitoring modules, and runs the
 main collection-and-send loop at the configured interval.
-Supports graceful shutdown on SIGINT / SIGTERM (Ctrl-C).
+Supports graceful shutdown on SIGINT (Ctrl-C) and, on POSIX systems,
+SIGTERM. Windows does not support SIGTERM, so only SIGINT is registered
+there.
 """
 
 import logging
@@ -89,9 +91,11 @@ def main():
     """
     global _running  # pylint: disable=global-statement
 
-    # Register signal handlers for graceful shutdown
+    # Register signal handlers for graceful shutdown.
+    # SIGTERM is not available on Windows, so only register it on POSIX systems.
     signal.signal(signal.SIGINT, _shutdown_handler)
-    signal.signal(signal.SIGTERM, _shutdown_handler)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _shutdown_handler)
 
     config = load_config(CONFIG_PATH)
     client_cfg: Dict[str, Any] = config.get("client", {})
